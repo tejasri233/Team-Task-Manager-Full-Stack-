@@ -1,23 +1,36 @@
-const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { getPool } = require('../config/db');
 
-const userSchema = mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['ADMIN', 'MEMBER'], default: 'MEMBER' }
-}, { timestamps: true });
+const User = {
+  async findOne({ email }) {
+    const pool = getPool();
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
+    if (!rows.length) return null;
+    const user = rows[0];
+    user.matchPassword = async (enteredPassword) => bcrypt.compare(enteredPassword, user.password);
+    return user;
+  },
 
-userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  async findById(id) {
+    const pool = getPool();
+    const [rows] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [id]);
+    if (!rows.length) return null;
+    const user = rows[0];
+    user.matchPassword = async (enteredPassword) => bcrypt.compare(enteredPassword, user.password);
+    return user;
+  },
+
+  async create({ name, email, password, role }) {
+    const pool = getPool();
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    const userRole = role || 'MEMBER';
+    const [result] = await pool.query(
+      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+      [name, email, hashedPassword, userRole]
+    );
+    return { id: result.insertId, _id: result.insertId, name, email, role: userRole };
+  },
 };
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    next();
-  }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
-
-module.exports = mongoose.model('User', userSchema);
+module.exports = User;
