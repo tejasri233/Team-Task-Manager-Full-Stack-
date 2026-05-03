@@ -1,58 +1,89 @@
-const Task = require('../models/Task');
+const { Task, Project, User } = require('../models');
+const { Op } = require('sequelize');
 
 const createTask = async (req, res) => {
-  const { title, description, assignedTo, projectId, dueDate } = req.body;
-  const task = await Task.create({
-    title,
-    description,
-    assignedTo,
-    projectId,
-    dueDate
-  });
-  res.status(201).json(task);
+  try {
+    const { title, description, assignedTo, projectId, dueDate } = req.body;
+    const task = await Task.create({
+      title,
+      description,
+      assignedToId: assignedTo || null,
+      projectId,
+      dueDate: dueDate || null
+    });
+    
+    const tData = task.toJSON();
+    tData._id = tData.id;
+    res.status(201).json(tData);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 const getTasksByProject = async (req, res) => {
-  const tasks = await Task.find({ projectId: req.params.projectId }).populate('assignedTo', 'name email');
-  res.json(tasks);
+  try {
+    const tasks = await Task.findAll({
+      where: { projectId: req.params.projectId },
+      include: [{ model: User, as: 'assignedTo', attributes: ['id', 'name', 'email'] }]
+    });
+    const tasksData = tasks.map(t => { const d = t.toJSON(); d._id = d.id; return d; });
+    res.json(tasksData);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 const updateTaskStatus = async (req, res) => {
-  const { status } = req.body;
-  const task = await Task.findById(req.params.id);
+  try {
+    const { status } = req.body;
+    const task = await Task.findByPk(req.params.id);
 
-  if (task) {
-    task.status = status;
-    const updatedTask = await task.save();
-    res.json(updatedTask);
-  } else {
-    res.status(404).json({ message: 'Task not found' });
+    if (task) {
+      task.status = status;
+      await task.save();
+      const tData = task.toJSON();
+      tData._id = tData.id;
+      res.json(tData);
+    } else {
+      res.status(404).json({ message: 'Task not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
 const getDashboardStats = async (req, res) => {
-  const tasks = await Task.find({
-    $or: [
-      { assignedTo: req.user._id },
-      { projectId: { $in: await getProjectIdsForUser(req.user._id) } }
-    ]
-  });
+  try {
+    const projectIds = await getProjectIdsForUser(req.user.id);
+    
+    const tasks = await Task.findAll({
+      where: {
+        [Op.or]: [
+          { assignedToId: req.user.id },
+          { projectId: { [Op.in]: projectIds } }
+        ]
+      }
+    });
 
-  const stats = {
-    total: tasks.length,
-    completed: tasks.filter(t => t.status === 'Done').length,
-    pending: tasks.filter(t => t.status === 'Todo').length,
-    overdue: tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Done').length
-  };
+    const stats = {
+      total: tasks.length,
+      completed: tasks.filter(t => t.status === 'Done').length,
+      pending: tasks.filter(t => t.status === 'Todo').length,
+      overdue: tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'Done').length
+    };
 
-  res.json(stats);
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 // Helper to get project IDs where user is a member
 const getProjectIdsForUser = async (userId) => {
-  const Project = require('../models/Project');
-  const projects = await Project.find({ members: userId }).select('_id');
-  return projects.map(p => p._id);
+  const user = await User.findByPk(userId, {
+    include: { model: Project, as: 'projects', attributes: ['id'] }
+  });
+  return user ? user.projects.map(p => p.id) : [];
 };
 
 module.exports = { createTask, getTasksByProject, updateTaskStatus, getDashboardStats };

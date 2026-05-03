@@ -27,18 +27,26 @@ const ProjectDetail = () => {
 
   const handleCreateTask = async (e) => {
     e.preventDefault();
-    await api.post('/tasks', { ...newTask, projectId: id });
-    setShowTaskModal(false);
-    setNewTask({ title: '', description: '', assignedTo: '', dueDate: '' });
-    fetchData();
+    try {
+      await api.post('/tasks', { ...newTask, projectId: id });
+      setShowTaskModal(false);
+      setNewTask({ title: '', description: '', assignedTo: '', dueDate: '' });
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error creating task');
+    }
   };
 
   const handleAddMember = async (e) => {
     e.preventDefault();
-    await api.post(`/projects/${id}/members`, { email: memberEmail });
-    setShowMemberModal(false);
-    setMemberEmail('');
-    fetchData();
+    try {
+      await api.post(`/projects/${id}/members`, { email: memberEmail });
+      setShowMemberModal(false);
+      setMemberEmail('');
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error adding member');
+    }
   };
 
   const updateStatus = async (taskId, status) => {

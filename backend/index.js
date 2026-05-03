@@ -12,10 +12,20 @@ app.use(cors());
 app.use(express.json());
 
 // Safe DB connection
-const connectDB = require('./config/db');
-connectDB().catch(err => {
-  console.error("DB Connection Failed:", err.message);
-});
+const { connectDB, sequelize } = require('./config/db');
+const models = require('./models');
+
+connectDB()
+  .then(() => {
+    // Sync models to the database
+    return sequelize.sync(); 
+  })
+  .then(() => {
+    console.log('Database synced successfully');
+  })
+  .catch(err => {
+    console.error("DB Connection Failed:", err.message);
+  });
 
 // Routes
 try {
