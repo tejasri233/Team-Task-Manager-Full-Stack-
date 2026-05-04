@@ -7,7 +7,7 @@ const sequelize = new Sequelize(
   process.env.DB_PASSWORD,
   {
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT,        // ✅ important for Railway
+    port: Number(process.env.DB_PORT) || 3306,        // ✅ important for Railway
     dialect: 'mysql',
     logging: false,
   }
