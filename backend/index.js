@@ -7,28 +7,28 @@ dotenv.config();
 
 const app = express();
 
-// ✅ CORS FIX (IMPORTANT)
+// ✅ CORS FIX (safe + production ready)
 const allowedOrigins = [
-  'https://frontend-production-15f4.up.railway.app'
+  'https://frontend-production-15f4.up.railway.app',
+  'http://localhost:5173'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin (Postman, mobile apps)
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // allow Postman / curl
 
-    if (!allowedOrigins.includes(origin)) {
-      return callback(new Error('CORS not allowed'), false);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
 
-    return callback(null, true);
+    return callback(new Error('CORS not allowed'), false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
 
-// ✅ Handle preflight requests
-app.options('*', cors());
+// ❌ REMOVE THIS (causes crash in Express v5)
+// app.options('*', cors());
 
 // Middleware
 app.use(express.json());
@@ -56,13 +56,14 @@ app.get('/', (req, res) => {
   res.send('Backend is running 🚀');
 });
 
-// Serve frontend (optional)
+// ✅ Serve frontend (FIXED)
 if (process.env.NODE_ENV === 'production') {
   const frontendPath = path.join(__dirname, '../frontend/dist');
 
   app.use(express.static(frontendPath));
 
-  app.get('*', (req, res) => {
+  // ✅ FIX: replace '*' with fallback handler
+  app.use((req, res) => {
     res.sendFile(path.resolve(frontendPath, 'index.html'));
   });
 }
