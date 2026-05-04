@@ -7,9 +7,9 @@ dotenv.config();
 
 const app = express();
 
-// ✅ CORS (clean + stable)
+// ✅ FINAL FIX (no origin issues at all)
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: true,
   credentials: true
 }));
 
@@ -39,14 +39,12 @@ app.get('/', (req, res) => {
   res.send('Backend is running 🚀');
 });
 
-// ✅ Serve frontend (FIXED for Express v5)
+// Serve frontend (Express v5 safe)
 if (process.env.NODE_ENV === 'production') {
   const frontendPath = path.join(__dirname, '../frontend/dist');
 
   app.use(express.static(frontendPath));
 
-  // ❌ removed app.get('*')
-  // ✅ use fallback handler instead
   app.use((req, res) => {
     res.sendFile(path.resolve(frontendPath, 'index.html'));
   });
