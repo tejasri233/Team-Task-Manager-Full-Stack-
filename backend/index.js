@@ -7,28 +7,11 @@ dotenv.config();
 
 const app = express();
 
-// ✅ CORS FIX (safe + production ready)
-const allowedOrigins = [
-  'https://frontend-production-15f4.up.railway.app',
-  'http://localhost:5173'
-];
-
+// ✅ FINAL CLEAN CORS (production safe)
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow Postman / curl
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    return callback(new Error('CORS not allowed'), false);
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: process.env.FRONTEND_URL,
   credentials: true
 }));
-
-// ❌ REMOVE THIS (causes crash in Express v5)
-// app.options('*', cors());
 
 // Middleware
 app.use(express.json());
@@ -40,7 +23,7 @@ require('./models');
 connectDB()
   .then(() => sequelize.sync())
   .then(() => {
-    console.log('Database synced successfully');
+    console.log('Database synced successfully ✅');
   })
   .catch(err => {
     console.error("DB Connection Failed:", err.message);
@@ -56,19 +39,18 @@ app.get('/', (req, res) => {
   res.send('Backend is running 🚀');
 });
 
-// ✅ Serve frontend (FIXED)
+// Serve frontend (production)
 if (process.env.NODE_ENV === 'production') {
   const frontendPath = path.join(__dirname, '../frontend/dist');
 
   app.use(express.static(frontendPath));
 
-  // ✅ FIX: replace '*' with fallback handler
-  app.use((req, res) => {
+  app.get('*', (req, res) => {
     res.sendFile(path.resolve(frontendPath, 'index.html'));
   });
 }
 
-// Port
+// Port (Railway uses its own PORT)
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, '0.0.0.0', () => {
