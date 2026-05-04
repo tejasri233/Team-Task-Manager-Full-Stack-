@@ -7,7 +7,7 @@ dotenv.config();
 
 const app = express();
 
-// ✅ FINAL CLEAN CORS (production safe)
+// ✅ CORS (clean + stable)
 app.use(cors({
   origin: process.env.FRONTEND_URL,
   credentials: true
@@ -39,18 +39,20 @@ app.get('/', (req, res) => {
   res.send('Backend is running 🚀');
 });
 
-// Serve frontend (production)
+// ✅ Serve frontend (FIXED for Express v5)
 if (process.env.NODE_ENV === 'production') {
   const frontendPath = path.join(__dirname, '../frontend/dist');
 
   app.use(express.static(frontendPath));
 
-  app.get('*', (req, res) => {
+  // ❌ removed app.get('*')
+  // ✅ use fallback handler instead
+  app.use((req, res) => {
     res.sendFile(path.resolve(frontendPath, 'index.html'));
   });
 }
 
-// Port (Railway uses its own PORT)
+// Port
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, '0.0.0.0', () => {
