@@ -7,19 +7,38 @@ dotenv.config();
 
 const app = express();
 
+// ✅ CORS FIX (IMPORTANT)
+const allowedOrigins = [
+  'https://frontend-production-15f4.up.railway.app'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (Postman, mobile apps)
+    if (!origin) return callback(null, true);
+
+    if (!allowedOrigins.includes(origin)) {
+      return callback(new Error('CORS not allowed'), false);
+    }
+
+    return callback(null, true);
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
+
+// ✅ Handle preflight requests
+app.options('*', cors());
+
 // Middleware
-app.use(cors());
 app.use(express.json());
 
-// Safe DB connection
+// DB Connection
 const { connectDB, sequelize } = require('./config/db');
-const models = require('./models');
+require('./models');
 
 connectDB()
-  .then(() => {
-    // Sync models to the database
-    return sequelize.sync(); 
-  })
+  .then(() => sequelize.sync())
   .then(() => {
     console.log('Database synced successfully');
   })
@@ -28,15 +47,11 @@ connectDB()
   });
 
 // Routes
-try {
-  app.use('/api/users', require('./routes/userRoutes'));
-  app.use('/api/projects', require('./routes/projectRoutes'));
-  app.use('/api/tasks', require('./routes/taskRoutes'));
-} catch (err) {
-  console.error("Route loading error:", err.message);
-}
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/projects', require('./routes/projectRoutes'));
+app.use('/api/tasks', require('./routes/taskRoutes'));
 
-// Root route (IMPORTANT ✅)
+// Root route
 app.get('/', (req, res) => {
   res.send('Backend is running 🚀');
 });
@@ -47,7 +62,7 @@ if (process.env.NODE_ENV === 'production') {
 
   app.use(express.static(frontendPath));
 
-  app.get('/', (req, res) => {
+  app.get('*', (req, res) => {
     res.sendFile(path.resolve(frontendPath, 'index.html'));
   });
 }
@@ -55,7 +70,6 @@ if (process.env.NODE_ENV === 'production') {
 // Port
 const PORT = process.env.PORT || 5000;
 
-// CRITICAL FIX ✅
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
