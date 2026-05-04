@@ -6,16 +6,11 @@ require('./models');
 
 const app = express();
 
-// ✅ SIMPLE + SAFE CORS (no custom logic)
+// ✅ ONLY THIS CORS (no extras)
 app.use(cors({
   origin: true,
   credentials: true
 }));
-
-// ✅ IMPORTANT: handle preflight BEFORE routes
-app.options('*', (req, res) => {
-  res.sendStatus(200);
-});
 
 // Middleware
 app.use(express.json());
