@@ -1,58 +1,54 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
-const path = require('path');
-
-dotenv.config();
+const { sequelize } = require('./config/db');
+require('./models');
 
 const app = express();
 
-// ✅ FINAL FIX (no origin issues at all)
+// ✅ FINAL CORS (stable + no blocking)
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173'
+].filter(Boolean);
+
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    console.log('CORS Blocked:', origin);
+    return callback(null, false);
+  },
   credentials: true
 }));
 
+// ✅ HANDLE PREFLIGHT (VERY IMPORTANT)
+app.options('*', cors());
+
 // Middleware
 app.use(express.json());
-
-// DB Connection
-const { connectDB, sequelize } = require('./config/db');
-require('./models');
-
-connectDB()
-  .then(() => sequelize.sync())
-  .then(() => {
-    console.log('Database synced successfully ✅');
-  })
-  .catch(err => {
-    console.error("DB Connection Failed:", err.message);
-  });
 
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/projects', require('./routes/projectRoutes'));
 app.use('/api/tasks', require('./routes/taskRoutes'));
 
-// Root route
+// Root
 app.get('/', (req, res) => {
-  res.send('Backend is running 🚀');
+  res.send('Backend running 🚀');
 });
 
-// Serve frontend (Express v5 safe)
-if (process.env.NODE_ENV === 'production') {
-  const frontendPath = path.join(__dirname, '../frontend/dist');
-
-  app.use(express.static(frontendPath));
-
-  app.use((req, res) => {
-    res.sendFile(path.resolve(frontendPath, 'index.html'));
-  });
-}
-
-// Port
+// Start server first (Railway needs this)
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Server running on port ${PORT}`);
+
+  try {
+    await sequelize.sync();
+    console.log('DB synced ✅');
+  } catch (err) {
+    console.error('DB error:', err.message);
+  }
 });
