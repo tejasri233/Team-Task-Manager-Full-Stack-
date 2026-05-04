@@ -6,16 +6,16 @@ require('./models');
 
 const app = express();
 
-// ✅ FINAL CORS + PREFLIGHT (safe & simple)
+// ✅ SIMPLE + SAFE CORS (no custom logic)
 app.use(cors({
   origin: true,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  credentials: true
 }));
 
-// ✅ handle preflight requests
-app.options('*', cors());
+// ✅ IMPORTANT: handle preflight BEFORE routes
+app.options('*', (req, res) => {
+  res.sendStatus(200);
+});
 
 // Middleware
 app.use(express.json());
@@ -25,7 +25,7 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/projects', require('./routes/projectRoutes'));
 app.use('/api/tasks', require('./routes/taskRoutes'));
 
-// Root route
+// Root
 app.get('/', (req, res) => {
   res.send('Backend running 🚀');
 });
